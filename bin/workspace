@@ -1,0 +1,230 @@
+#!/bin/bash
+
+function __workspace_main() {
+  citc_dir="/google/src/cloud/$USER"
+
+  CYAN="\x1b[0;36m"
+  GREEN="\x1b[0;32m"
+  PURPLE="\x1b[0;35m"
+  NO_COLOR="\x1b[0m"
+  ghub_tag="$CYAN[ghub]$NO_COLOR"
+  home_tag="$PURPLE[home]$NO_COLOR"
+  citc_tag="$GREEN[citc]$NO_COLOR"
+
+  function get_g4d_files() { # $root
+    local root="$1"
+    if [[ ! -e "$root/.hg" ]]; then
+      return
+    fi
+    cat ~/.g4d | \
+      grep '^alias' | \
+      awk '{print $3}' | \
+      xargs -I _ find "$root"_ -type f 2>/dev/null | \
+      cut -c $(($(echo "$root" | wc -c) + 1))-
+  }
+
+  function get_hg_files() { # $root
+    local root="$1"
+    if [[ ! -e "$root/.hg" ]]; then
+      return
+    fi
+    echo "$(cd "$root" && hg files 2>/dev/null)"
+  }
+
+  function get_git_files() { # $root
+    if [[ ! -e "$root/.git" ]]; then
+      return
+    fi
+    local root="$1"
+    echo "$(cd "$root" && git ls-files -co --exclude-standard 2>/dev/null)"
+  }
+
+  function get_find_files() {
+    find . -type f 2>/dev/null
+  }
+
+  function get_root() {
+    if [[ -e ".git" || -e ".hg" ]]; then
+      printf '%s\n' "${PWD%/}"
+      return 0
+    elif [[ "$PWD" = / ]]; then
+      echo '.'
+      return 0
+    else
+      # a subshell so that we don't affect the caller's $PWD
+      (cd .. && get_root "$1")
+    fi
+  }
+
+  function _clean_ls() { #prefix
+    prefix="$1"
+    if [[ -n "$prefix" ]]; then
+      prefix="$prefix/"
+    fi
+    local ls_results
+    while read -r ls_results; do
+      if [[ -z "$ls_results" ]]; then
+        continue
+      fi
+      echo "$prefix$ls_results"
+    done
+  }
+
+  function get_ls() { #root is_relative
+    local root="$1"
+    local is_relative=${2:-1}
+    local prefix=""
+
+    if [[ $is_relative -eq 0 ]]; then
+      prefix="$(realpath --relative-to="." "$root")"
+    fi
+
+    if [[ "$root" == '.' ]]; then
+      get_find_files | _clean_ls '' &
+      return;
+    fi
+
+    outfile="$(mktemp)"
+
+    finished="magic finished code that should not be a filename"
+    # Q requires GNU sed.
+    tail -f -s 0.01 "$outfile" | sed "/$finished/ Q" | _clean_ls "$prefix" | awk '!seen[$0]++' &
+    read_pid=$!
+
+    get_g4d_files "$root" 1>> "$outfile" &
+    g4d_pid=$!
+    get_hg_files "$root" 1>> "$outfile" &
+    hg_pid=$!
+    get_git_files "$root" 1>> "$outfile" &
+    git_pid=$!
+
+    wait "$g4d_pid" "$hg_pid" "$git_pid"
+
+    echo "$finished" >> "$outfile"
+    wait "$read_pid"
+
+    rm "$outfile" &
+    return 0
+  }
+
+  function get_ag() { # root, ...args_for_ag
+    local root="$1"
+    shift 1
+    cd "$root"
+    get_ls "$root" | xargs -P "$(($(nproc) - 2))" ag "$@" 2>/dev/null
+    return $?
+  }
+
+  function replace() { # root, target_pattern, replace_pattern
+    local root="$1"
+    local target_pattern="$2"
+    local replace_pattern="$3"
+    local delimiter=$(echo -en "\001")
+    get_ag "$root" -0 -l "$target_pattern" | \
+      xargs -0 sed -Ei "s${delimiter}${target_pattern}${delimiter}${replace_pattern}${delimiter}g"
+  }
+
+  function _clean_roots() { #prefix
+    local ls_results
+    local delimiter=$(echo -en "\001")
+    while read -r ls_results; do
+      if [[ -z "$ls_results" ]]; then
+        continue
+      fi
+      echo "$ls_results"
+    done | \
+      sed "s${delimiter}^$GHD_LOCATION/\?${delimiter}$ghub_tag ${delimiter}" | \
+      sed "s${delimiter}^$citc_dir/\?${delimiter}$citc_tag ${delimiter}" | \
+      sed "s${delimiter}^$HOME/\?${delimiter}$home_tag ${delimiter}"
+  }
+
+  function get_roots () {
+    if [[ -e "$HOME/config" ]]; then
+      echo "$HOME/config" | _clean_roots
+    fi
+    if [[ -e "$GHD_LOCATION" ]]; then
+      find "$GHD_LOCATION" -mindepth 2 -maxdepth 2 -type d | _clean_roots
+    fi
+    if [[ -e "$citc_dir" ]]; then
+      find "$citc_dir" -mindepth 1 -maxdepth 1 -type d \
+        -not -name "fig-export-*" \
+        -not -name "G3DOC-*" \
+        -not -name "CS-*" \
+        -not -name "safergcp_*" \
+        -not -name "rapid-tool-*" \
+        | _clean_roots
+    fi
+  }
+
+  function untag_root() {
+    while read -r line; do
+      echo $line
+    done | \
+      sed "s|^\[ghub\] |$GHD_LOCATION/|" | \
+      sed "s|^\[citc\] \(.*\)$|/google/src/cloud/$USER/\\1/google3|" | \
+      sed "s|^\[home\] |$HOME/|"
+  }
+
+  is_relative=1
+  cmd="$1"
+  shift 1
+  case "$cmd" in
+    root)
+      get_root "$@"
+      ;;
+
+    ls)
+      while test $# != 0
+      do
+          case "$1" in
+          --relative) is_relative=0 ;;
+          --) shift; break;;
+          *) break;;
+          esac
+          shift
+      done
+
+      root="$(get_root)"
+      get_ls "$root" "$is_relative" "$@"
+      wait
+      ;;
+
+    ag)
+      root="$(get_root)"
+      get_ag "$root" "$@"
+      wait
+      ;;
+
+    replace)
+      root="$(get_root)"
+      replace "$root" "$@"
+      wait
+      ;;
+
+    roots)
+      get_roots "$@"
+      ;;
+
+    untag_root)
+      untag_root
+      ;;
+
+    *)
+      echo 'Invalid command! Supply "ag", "root", "replace", "roots", "untag_root", or "ls"'
+      ;;
+  esac
+}
+
+# If we're not being sourced by .bashrc, run main and exit.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  __workspace_main "$@"
+  exit $?
+fi
+
+function jump_to_workspace_directory() {
+  cd "$( \
+    workspace roots | \
+    fzf --ansi -1 --query="$@" | \
+    workspace untag_root \
+  )"
+}

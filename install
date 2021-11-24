@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e
+
+function add_if_not_exists() {
+  local kind="$1"
+  local to_add="$2"
+  local destination="$3"
+  local binary="$4"
+
+  if grep -Fxq "$to_add" "$destination"; then
+    echo "$binary is already in your path"
+    exit 1
+  else
+    echo "Adding $kind..."
+    echo >> "$destination"
+    echo "# $kind" >> "$destination"
+    echo "$to_add" >> "$destination"
+  fi
+}
+
+rcfile="$HOME/.bashrc"
+binary=workspace
+binary_path_raw="$(realpath "$(dirname $0)")/bin/$binary"
+binary_path="${binary_path_raw/#$HOME/\$HOME}"
+
+if [[ ! -f "$rcfile" ]]; then
+  echo "Couldn't find: $rcfile"
+  exit 1
+fi
+
+add_if_not_exists \
+  "Configuration for https://github.com/okkays/$binary" \
+  "PATH=\"$(dirname $binary_path):\$PATH\"" \
+  "$rcfile" \
+  "$binary"
+
+add_if_not_exists \
+  "Bindings for https://github.com/okkays/$binary" \
+  ". \"$binary_path\"" \
+  "$rcfile" \
+  "$binary"
