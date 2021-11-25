@@ -23,6 +23,8 @@ rcfile="$HOME/.bashrc"
 binary=workspace
 binary_path_raw="$(realpath "$(dirname $0)")/bin/$binary"
 binary_path="${binary_path_raw/#$HOME/\$HOME}"
+repo_path_raw="$(dirname "$(dirname "$binary_path")")"
+repo_path="${repo_path_raw/#$HOME/\$HOME}"
 
 if [[ ! -f "$rcfile" ]]; then
   echo "Couldn't find: $rcfile"
