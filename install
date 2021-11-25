@@ -30,6 +30,12 @@ if [[ ! -f "$rcfile" ]]; then
 fi
 
 add_if_not_exists \
+  "Auto-reclone for https://github.com/okkays/$binary" \
+  "[[ ! -d \"$repo_path\" ]] && command -v gh && gh repo clone \"okkays/$binary\" \"$repo_path\"" \
+  "$rcfile" \
+  "$binary"
+
+add_if_not_exists \
   "Configuration for https://github.com/okkays/$binary" \
   "PATH=\"$(dirname $binary_path):\$PATH\"" \
   "$rcfile" \
