@@ -10,7 +10,7 @@ function add_if_not_exists() {
 
   if grep -Fxq "$to_add" "$destination"; then
     echo "$binary is already in your path"
-    exit 1
+    return 0
   else
     echo "Adding $kind..."
     echo >> "$destination"
