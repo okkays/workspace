@@ -1,6 +1,7 @@
 #!/bin/bash
 
 function __workspace_main() {
+  local usage
   citc_dir="/google/src/cloud/$USER"
 
   CYAN="\x1b[0;36m"
@@ -43,6 +44,11 @@ function __workspace_main() {
     find . -type f 2>/dev/null
   }
 
+  read -r -d '' usage <<-EOF
+    $usage\n
+workspace root
+\tPrints the root directory of the current workspace.
+EOF
   function get_root() {
     if [[ -e ".git" || -e ".hg" ]]; then
       printf '%s\n' "${PWD%/}"
@@ -70,6 +76,11 @@ function __workspace_main() {
     done
   }
 
+  read -r -d '' usage <<-EOF
+    $usage\n
+workspace ls
+\tGets a list of all files in the current workspace.
+EOF
   function get_ls() { #root is_relative
     local root="$1"
     local is_relative=${2:-1}
@@ -107,6 +118,11 @@ function __workspace_main() {
     return 0
   }
 
+  read -r -d '' usage <<-EOF
+    $usage\n
+workspace ag [args_for_ag]
+\tSearches the current workspace using ag (the silver searcher).
+EOF
   function get_ag() { # root, ...args_for_ag
     local root="$1"
     shift 1
@@ -115,6 +131,12 @@ function __workspace_main() {
     return $?
   }
 
+  read -r -d '' usage <<-EOF
+    $usage\n
+workspace replace [target_pattern] [replace_pattern]
+\tReplaces the target_pattern with the replace_pattern across the workspace.
+\tag is used for the finding, and sed -E for replacing.
+EOF
   function replace() { # root, target_pattern, replace_pattern
     local root="$1"
     local target_pattern="$2"
@@ -138,6 +160,12 @@ function __workspace_main() {
       sed "s${delimiter}^$HOME/\?${delimiter}$home_tag ${delimiter}"
   }
 
+  read -r -d '' usage <<-EOF
+    $usage\n
+workspace roots
+\tGets a list of all workspace roots. Used with jump_to_workspace_directory.
+\tWorks with /g/c/s, ghd, and ~/config
+EOF
   function get_roots () {
     if [[ -e "$HOME/config" ]]; then
       echo "$HOME/config" | _clean_roots
@@ -156,6 +184,12 @@ function __workspace_main() {
     fi
   }
 
+  read -r -d '' usage <<-EOF
+    $usage\n
+workspace untag_root
+\tReads from stdin to transform a tagged root to an untagged root.
+\tFor example: echo "[home] config" | workspace untag_root
+EOF
   function untag_root() {
     while read -r line; do
       echo $line
@@ -210,7 +244,7 @@ function __workspace_main() {
       ;;
 
     *)
-      echo 'Invalid command! Supply "ag", "root", "replace", "roots", "untag_root", or "ls"'
+      printf "Usage:$usage\n\n"
       ;;
   esac
 }
@@ -221,6 +255,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   exit $?
 fi
 
+# Set up bindings and public functions
 function jump_to_workspace_directory() {
   cd "$( \
     workspace roots | \
@@ -228,3 +263,6 @@ function jump_to_workspace_directory() {
     workspace untag_root \
   )"
 }
+
+alias wd="jump_to_workspace_directory"
+alias ws=workspace
