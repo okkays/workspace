@@ -266,3 +266,6 @@ function jump_to_workspace_directory() {
 
 alias wd="jump_to_workspace_directory"
 alias ws=workspace
+if [[ $EDITOR == *vim* ]]; then
+  bind '"\C-p":"$EDITOR -c \"call feedkeys(\\\"\\\\<C-P>\\\")\"\r"'
+fi
