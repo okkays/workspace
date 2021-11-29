@@ -2,6 +2,8 @@
 
 Assorted utilities for navigating various workspaces.
 
+![A demo of the features described below](demo.gif)
+
 ## Installation
 
 ```bash
