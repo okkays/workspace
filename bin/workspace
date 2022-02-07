@@ -20,7 +20,7 @@ function __workspace_main() {
     cat ~/.g4d | \
       grep '^alias' | \
       awk '{print $3}' | \
-      xargs -I _ find "$root"_ -type f 2>/dev/null | \
+      xargs -I % find "$root"% -type f 2>/dev/null | \
       cut -c $(($(echo "$root" | wc -c) + 1))-
   }
 
