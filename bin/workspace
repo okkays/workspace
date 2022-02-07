@@ -123,27 +123,37 @@ EOF
 workspace ag [args_for_ag]
 \tSearches the current workspace using ag (the silver searcher).
 EOF
-  function get_ag() { # root, ...args_for_ag
+  function find_in_files() { # root, ...args_for_ag
     local root="$1"
     shift 1
+    local cmd="$(get_search_command)"
     cd "$root"
-    get_ls "$root" | xargs -P "$(($(nproc) - 2))" ag "$@" 2>/dev/null
+    get_ls "$root" | xargs -P "$(($(nproc) - 2))" "$cmd" "$@" 2>/dev/null
     return $?
+  }
+
+  function get_search_command() {
+    if [[ -x "$(command -v rg)" ]]; then
+      echo rg
+    else
+      echo ag
+    fi
   }
 
   read -r -d '' usage <<-EOF
     $usage\n
 workspace replace [target_pattern] [replace_pattern]
 \tReplaces the target_pattern with the replace_pattern across the workspace.
-\tag is used for the finding, and sed -E for replacing.
+\tag or rg are used for the finding, and sed -E for replacing.
 EOF
   function replace() { # root, target_pattern, replace_pattern
     local root="$1"
     local target_pattern="$2"
     local replace_pattern="$3"
     local delimiter=$(echo -en "\001")
-    get_ag "$root" -0 -l "$target_pattern" | \
-      xargs -0 sed -Ei "s${delimiter}${target_pattern}${delimiter}${replace_pattern}${delimiter}g"
+    find_in_files "$root" -0 -l "$target_pattern" \
+      | awk "BEGIN { RS = \"\\0\"; ORS = \"\\0\" } ; {print \"$root/\"\$0}" \
+      | xargs -0 sed -Ei "s${delimiter}${target_pattern}${delimiter}${replace_pattern}${delimiter}g"
   }
 
   function _clean_roots() { #prefix
@@ -223,9 +233,9 @@ EOF
       wait
       ;;
 
-    ag)
+    ag|rg)
       root="$(get_root)"
-      get_ag "$root" "$@"
+      find_in_files "$root" "$@"
       wait
       ;;
 
