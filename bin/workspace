@@ -169,7 +169,7 @@ EOF
     done | \
       sed "s${delimiter}^$GHD_LOCATION/\?${delimiter}$ghub_tag ${delimiter}" | \
       sed "s${delimiter}^$citc_dir/\?${delimiter}$citc_tag ${delimiter}" | \
-      sed "s${delimiter}^$HOME/working\?${delimiter}$working_tag ${delimiter}" | \
+      sed "s${delimiter}^$HOME/working/\?${delimiter}$working_tag ${delimiter}" | \
       sed "s${delimiter}^$HOME/\?${delimiter}$home_tag ${delimiter}"
   }
 
