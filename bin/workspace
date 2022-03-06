@@ -6,10 +6,12 @@ function __workspace_main() {
 
   CYAN="\x1b[0;36m"
   GREEN="\x1b[0;32m"
+  YELLOW="\x1b[0;33m"
   PURPLE="\x1b[0;35m"
   NO_COLOR="\x1b[0m"
   ghub_tag="$CYAN[ghub]$NO_COLOR"
   home_tag="$PURPLE[home]$NO_COLOR"
+  working_tag="$YELLOW[working]$NO_COLOR"
   citc_tag="$GREEN[citc]$NO_COLOR"
 
   function get_g4d_files() { # $root
@@ -167,6 +169,7 @@ EOF
     done | \
       sed "s${delimiter}^$GHD_LOCATION/\?${delimiter}$ghub_tag ${delimiter}" | \
       sed "s${delimiter}^$citc_dir/\?${delimiter}$citc_tag ${delimiter}" | \
+      sed "s${delimiter}^$HOME/working\?${delimiter}$working_tag ${delimiter}" | \
       sed "s${delimiter}^$HOME/\?${delimiter}$home_tag ${delimiter}"
   }
 
@@ -179,6 +182,9 @@ EOF
   function get_roots () {
     if [[ -e "$HOME/config" ]]; then
       echo "$HOME/config" | _clean_roots
+    fi
+    if [[ -e "$HOME/working" ]]; then
+      find "$HOME/working" -mindepth 1 -maxdepth 1 -type d | _clean_roots
     fi
     if [[ -e "$GHD_LOCATION" ]]; then
       find "$GHD_LOCATION" -mindepth 2 -maxdepth 2 -type d | _clean_roots
@@ -206,6 +212,7 @@ EOF
     done | \
       sed "s|^\[ghub\] |$GHD_LOCATION/|" | \
       sed "s|^\[citc\] \(.*\)$|/google/src/cloud/$USER/\\1/google3|" | \
+      sed "s|^\[working\] |$HOME/working/|" | \
       sed "s|^\[home\] |$HOME/|"
   }
 
