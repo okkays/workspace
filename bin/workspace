@@ -83,17 +83,27 @@ EOF
 workspace ls
 \tGets a list of all files in the current workspace.
 EOF
-  function get_ls() { #root is_relative
+  function get_ls() { #root is_relative find_directories
     local root="$1"
     local is_relative=${2:-1}
+    local find_directories=${3:-1}
     local prefix=""
+    local dir_pipe='cat'
 
     if [[ $is_relative -eq 0 ]]; then
       prefix="$(realpath --relative-to="." "$root")"
     fi
 
+    if [[ $find_directories -eq 0 ]]; then
+      dir_pipe='xargs dirname'
+    fi
+
     if [[ "$root" == '.' ]]; then
-      get_find_files | _clean_ls '' &
+      get_find_files \
+        | _clean_ls '' \
+        | $dir_pipe \
+        | awk '!seen[$0]++' \
+        &
       return;
     fi
 
@@ -101,7 +111,12 @@ EOF
 
     finished="magic finished code that should not be a filename"
     # Q requires GNU sed.
-    tail -f -s 0.01 "$outfile" | sed "/$finished/ Q" | _clean_ls "$prefix" | awk '!seen[$0]++' &
+    tail -f -s 0.01 "$outfile" \
+      | sed "/$finished/ Q" \
+      | _clean_ls "$prefix" \
+      | $dir_pipe \
+      | awk '!seen[$0]++' \
+      &
     read_pid=$!
 
     get_g4d_files "$root" 1>> "$outfile" &
@@ -217,6 +232,7 @@ EOF
   }
 
   is_relative=1
+  find_directories=1
   cmd="$1"
   shift 1
   case "$cmd" in
@@ -229,6 +245,7 @@ EOF
       do
           case "$1" in
           --relative) is_relative=0 ;;
+          --directories) find_directories=0 ;;
           --) shift; break;;
           *) break;;
           esac
@@ -236,7 +253,7 @@ EOF
       done
 
       root="$(get_root)"
-      get_ls "$root" "$is_relative" "$@"
+      get_ls "$root" "$is_relative" "$find_directories" "$@"
       wait
       ;;
 
