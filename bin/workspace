@@ -145,7 +145,7 @@ EOF
     shift 1
     local cmd="$(get_search_command)"
     cd "$root"
-    get_ls "$root" | xargs -P "$(($(nproc) - 2))" "$cmd" "$@" 2>/dev/null
+    get_ls "$root" | xargs -P "$(($(nproc) - 2))" "$cmd" --smart-case "$@" 2>/dev/null
     return $?
   }
 
