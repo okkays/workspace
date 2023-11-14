@@ -145,13 +145,13 @@ EOF
     shift 1
     local cmd="$(get_search_command)"
     cd "$root"
-    get_ls "$root" | xargs -P "$(($(nproc) - 2))" "$cmd" --smart-case "$@" 2>/dev/null
+    get_ls "$root" | xargs -P "$(($(nproc) - 2))" $cmd --smart-case "$@" 2>/dev/null
     return $?
   }
 
   function get_search_command() {
     if [[ -x "$(command -v rg)" ]]; then
-      echo rg
+      echo 'rg --pcre2'
     else
       echo ag
     fi
