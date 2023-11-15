@@ -78,10 +78,52 @@ EOF
     done
   }
 
+  function _filter_ignorefile() {
+    declare -a ignore_globs
+    local ls_results
+    local should_ignore
+
+    if [[ ! -f "$HOME/.ignore" ]]; then
+      while read -r ls_results; do
+        echo "$ls_results"
+      done
+      return
+    fi
+
+    while read -r ignore_glob; do
+      if [[ -z "$ignore_glob" ]]; then
+        continue
+      fi
+      ignore_globs+=("$ignore_glob")
+    done < ~/.ignore
+
+    while read -r ls_results; do
+      if [[ -z "$ls_results" ]]; then
+        continue
+      fi
+      should_ignore=0
+      for ignore_glob in "${ignore_globs[@]}"; do
+        if [[ -z "$ignore_glob" ]]; then
+          continue
+        fi
+        if [[ "$ls_results" == $ignore_glob ]]; then
+          should_ignore=1
+          break
+        fi
+      done
+
+      if [[ $should_ignore -eq 1 ]]; then
+        continue
+      fi
+      echo "$ls_results"
+    done
+  }
+
   read -r -d '' usage <<-EOF
     $usage\n
 workspace ls
 \tGets a list of all files in the current workspace.
+\tIgnores a list of globs in ~/.ignore
 EOF
   function get_ls() { #root is_relative find_directories
     local root="$1"
@@ -114,6 +156,7 @@ EOF
     tail -f -s 0.01 "$outfile" \
       | sed "/$finished/ Q" \
       | _clean_ls "$prefix" \
+      | _filter_ignorefile \
       | $dir_pipe \
       | awk '!seen[$0]++' \
       &
